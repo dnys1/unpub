@@ -1,5 +1,5 @@
 # Build the unpub server
-FROM dart:stable AS build-server
+FROM --platform=amd64 dart:stable AS build-server
 
 RUN dart pub global activate unpub && \
     cd /root/.pub-cache/hosted/pub.dartlang.org && \
