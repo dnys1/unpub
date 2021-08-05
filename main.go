@@ -43,4 +43,17 @@ func main() {
 	if err := cmd.Run(gitUrl, gitRef, fmt.Sprintf("http://%s:%s", host, port)); err != nil {
 		log.Fatalln(err)
 	}
+
+	fmt.Println("\nUnpub has been successfully seeded!")
+	fmt.Printf(`
+Add the following to your pubspec.yaml for each package you want to use:
+
+  package:
+    hosted:
+      name: package
+      url: http://localhost:%s
+    version: ^x.y.z
+	`, port)
+	fmt.Print("\nRemember to set an environment variable when publishing:\n\n")
+	fmt.Printf("  $ PUB_HOSTED_URL=http://localhost:%s pub publish\n\n", port)
 }

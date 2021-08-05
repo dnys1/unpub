@@ -40,8 +40,6 @@ func Run(gitUrl, branch, url string) error {
 		return err
 	}
 
-	log.Println("Unpub has been successfully seeded")
-
 	return nil
 }
 
@@ -120,10 +118,9 @@ func gatherPackages(gitUrl, dir string) ([]string, error) {
 	return packageDirs, nil
 }
 
+// uploadPackages compresses and uploads packages to running unpub server.
 func uploadPackages(packageDirs []string, tempDir, url string) error {
-	// wg := new(errgroup.Group)
 	for _, packageDir := range packageDirs {
-		// packageDir := packageDir
 		tarball, err := createTarball(tempDir, packageDir)
 		if err != nil {
 			return errors.Wrapf(err, "error creating tarball for dir %s", packageDir)
@@ -138,6 +135,7 @@ func uploadPackages(packageDirs []string, tempDir, url string) error {
 	return nil
 }
 
+// createTarball compresses a package directory into a .tar.gz file.
 func createTarball(tempDir, packageDir string) (*os.File, error) {
 	dirname := filepath.Base(packageDir)
 	filename := dirname + ".tar.gz"
@@ -173,6 +171,7 @@ func createTarball(tempDir, packageDir string) (*os.File, error) {
 	return os.Open(filepath.Join(tempDir, filename))
 }
 
+// uploadTarball pushes a tarball to a running unpub server.
 func uploadTarball(tarball *os.File, url string) error {
 	endpoint := fmt.Sprintf("%s/api/packages/versions/newUpload", url)
 
