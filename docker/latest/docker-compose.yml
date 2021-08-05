@@ -1,4 +1,4 @@
-version: "3"
+version: "3.7"
 
 services:
     mongodb:
@@ -11,6 +11,7 @@ services:
         restart: unless-stopped
     unpub:
         image: dnys1/unpub:latest
+        pull_policy: always
         container_name: unpub
         ports:
             - ${UNPUB_PORT}:${UNPUB_PORT}
@@ -19,6 +20,7 @@ services:
         command: --port=${UNPUB_PORT} --database="mongodb://mongodb:27017/dart_pub"
     launcher:
         image: dnys1/unpub-launcher:latest
+        pull_policy: always
         environment:
             UNPUB_HOST: unpub
             UNPUB_PORT: ${UNPUB_PORT}
