@@ -13,6 +13,7 @@ The launcher is controlled with the following environment variables:
 | `UNPUB_GIT_REF` | The git ref to clone | main |
 
 ```bash
+$ mkdir ~/unpub && cd ~/unpub
 $ curl -L https://raw.githubusercontent.com/dnys1/unpub-launcher/main/docker/latest/docker-compose.yml -o docker-compose.yml
 $ UNPUB_PORT=8000 \
   UNPUB_GIT_URL=https://github.com/dnys1/my-dart-packages \
