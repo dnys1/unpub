@@ -1,0 +1,29 @@
+version: "3"
+
+services:
+    mongodb:
+        image: mongo
+        container_name: mongodb_unpub
+        volumes:
+            - ~/mongodb/unpub:/data/db
+        ports:
+            - 27017:27017
+        restart: unless-stopped
+    unpub:
+        image: dnys1/unpub:latest
+        container_name: unpub
+        ports:
+            - ${UNPUB_PORT}:${UNPUB_PORT}
+        depends_on: 
+            - mongodb
+        command: --port=${UNPUB_PORT} --database="mongodb://mongodb:27017/dart_pub"
+    launcher:
+        image: dnys1/unpub-launcher:latest
+        environment:
+            UNPUB_HOST: unpub
+            UNPUB_PORT: ${UNPUB_PORT}
+            UNPUB_GIT_URL: ${UNPUB_GIT_URL}
+            UNPUB_GIT_REF: ${UNPUB_GIT_REF}
+            UNPUB_PACKAGES: ${UNPUB_PACKAGES}
+        depends_on: 
+            - unpub
