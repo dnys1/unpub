@@ -17,7 +17,7 @@ services:
             - ${UNPUB_PORT}:${UNPUB_PORT}
         depends_on: 
             - mongodb
-        command: --port=${UNPUB_PORT} --database="mongodb://mongodb:27017/dart_pub"
+        command: --port=${UNPUB_PORT} --database="mongodb://mongodb:27017/dart_pub" --uploader-email=${UNPUB_EMAIL}
     launcher:
         image: dnys1/unpub-launcher:latest
         pull_policy: always

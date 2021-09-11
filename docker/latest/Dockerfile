@@ -1,11 +1,12 @@
 # Build the unpub server
 FROM --platform=amd64 dart:stable AS build-server
 
-RUN dart pub global activate unpub && \
-    cd /root/.pub-cache/hosted/pub.dartlang.org && \
-    cp -r $(ls | grep unpub) /unpub
+WORKDIR /
+RUN apt update && \
+    apt install -y git && \
+    git clone https://github.com/dnys1/unpub.git
     
-WORKDIR /unpub
+WORKDIR /unpub/unpub
 RUN mkdir -p build && \
     dart pub get && \
     dart compile exe -o build/server bin/unpub.dart
@@ -37,7 +38,7 @@ FROM ubuntu:hirsute AS server
 RUN apt update && apt install -y ca-certificates
 
 WORKDIR /unpub
-COPY --from=build-server /unpub/build/server .
+COPY --from=build-server /unpub/unpub/build/server .
 
 ENTRYPOINT [ "/unpub/server" ]
 
