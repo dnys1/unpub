@@ -138,24 +138,27 @@ func uploadPackages(packageDirs []string, tempDir, url string) error {
 // createTarball compresses a package directory into a .tar.gz file.
 func createTarball(tempDir, packageDir string) (*os.File, error) {
 	dirname := filepath.Base(packageDir)
-	filename := dirname + ".tar.gz"
+	filename := dirname + ".tar"
 	changedir, err := filepath.Rel(tempDir, packageDir)
 	if err != nil {
 		return nil, err
 	}
+	tarfile := filepath.Join(tempDir, filename)
+	gzipfile := filepath.Join(tempDir, filename+".gz")
 
 	var xform string
-	if os := runtime.GOOS; os == "darwin" {
-		xform = `-s:^\./::`
-	} else if os == "linux" {
+	currentOS := runtime.GOOS
+	if currentOS == "darwin" {
+		xform = `-s:^\.::`
+	} else if currentOS == "linux" {
 		xform = `--xform=s:^\./::`
 	} else {
-		log.Fatalf("OS not supported: %s\n", os)
+		log.Fatalf("OS not supported: %s\n", currentOS)
 	}
 	cmd := exec.Command(
 		"tar",
-		"-czf",
-		filepath.Join(tempDir, filename), // store archives in temp dir
+		"-cf",
+		tarfile, // store archives in temp dir
 		"-C",
 		changedir, // change into the dir (may be nested)
 		xform,     // rename files from ./filename.txt to filename.txt
@@ -165,10 +168,58 @@ func createTarball(tempDir, packageDir string) (*os.File, error) {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("tar: %s\n", out)
+		log.Printf("tar create: %s\n", out)
 		return nil, err
 	}
-	return os.Open(filepath.Join(tempDir, filename))
+
+	// Delete top-level directory on linux (handled on mac).
+	if currentOS == "linux" {
+		delCmd := exec.Command(
+			"tar",
+			"--delete",
+			"-f",
+			tarfile,
+			".",
+		)
+		delCmd.Dir = tempDir
+
+		out, err = delCmd.CombinedOutput()
+		if err != nil {
+			log.Printf("tar delete: %s\n", out)
+			return nil, err
+		}
+
+		// Compress tar with gzip
+		compressCmd := exec.Command(
+			"gzip",
+			"-f",
+			tarfile,
+		)
+		compressCmd.Dir = tempDir
+
+		out, err = compressCmd.CombinedOutput()
+		if err != nil {
+			log.Printf("tar gzip: %s\n", out)
+			return nil, err
+		}
+	} else {
+		// Compress tar with gzip
+		compressCmd := exec.Command(
+			"tar",
+			"-czf",
+			gzipfile,
+			"@"+filename,
+		)
+		compressCmd.Dir = tempDir
+
+		out, err = compressCmd.CombinedOutput()
+		if err != nil {
+			log.Printf("tar gzip: %s\n", out)
+			return nil, err
+		}
+	}
+
+	return os.Open(gzipfile)
 }
 
 // uploadTarball pushes a tarball to a running unpub server.
