@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/pkg/errors"
@@ -53,14 +54,41 @@ func cloneGit(gitUrl, branch string) (string, error) {
 	log.Printf("Created temporary dir: %s\n", tmpDir)
 	log.Printf("Cloning %s branch %q to %s\n", gitUrl, branch, tmpDir)
 
-	_, err = git.PlainClone(tmpDir, false, &git.CloneOptions{
-		URL:           gitUrl,
-		Depth:         0,
-		ReferenceName: plumbing.NewBranchReferenceName(branch),
-		SingleBranch:  true,
+	repo, err := git.PlainClone(tmpDir, false, &git.CloneOptions{
+		URL:        gitUrl,
+		Depth:      1,
+		NoCheckout: true,
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "git clone failed")
+	}
+
+	err = repo.Fetch(&git.FetchOptions{
+		RefSpecs: []config.RefSpec{
+			config.RefSpec("+refs/pull/*/head:refs/remotes/origin/pull/*"),
+		},
+		Depth: 1,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "git fetch failed")
+	}
+
+	remoteRef := plumbing.NewRemoteReferenceName("origin", branch)
+	commit, err := repo.ResolveRevision(plumbing.Revision(remoteRef))
+	if err != nil {
+		return "", errors.Wrapf(err, "git could not resolve hash for %s", remoteRef)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return "", errors.Wrap(err, "git worktree failed")
+	}
+	err = wt.Checkout(&git.CheckoutOptions{
+		Hash:   *commit,
+		Branch: plumbing.NewBranchReferenceName(branch),
+		Create: true,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "git checkout failed")
 	}
 
 	return tmpDir, nil
