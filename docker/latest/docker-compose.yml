@@ -4,8 +4,8 @@ services:
     mongodb:
         image: mongo
         container_name: mongodb_unpub
-        volumes:
-            - ~/unpub:/data/db
+        networks:
+            - unpub-network
         ports:
             - 27017:27017
         restart: unless-stopped
@@ -13,6 +13,8 @@ services:
         image: dnys1/unpub:latest
         pull_policy: always
         container_name: unpub
+        networks:
+            - unpub-network
         ports:
             - ${UNPUB_PORT}:${UNPUB_PORT}
         depends_on: 
@@ -21,6 +23,8 @@ services:
     launcher:
         image: dnys1/unpub-launcher:latest
         pull_policy: always
+        networks:
+            - unpub-network
         environment:
             UNPUB_HOST: unpub
             UNPUB_PORT: ${UNPUB_PORT}
@@ -29,3 +33,7 @@ services:
             UNPUB_PACKAGES: ${UNPUB_PACKAGES}
         depends_on: 
             - unpub
+
+networks:
+    unpub-network:
+        driver: bridge

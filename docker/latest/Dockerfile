@@ -38,9 +38,9 @@ FROM ubuntu:hirsute AS server
 RUN apt update && apt install -y ca-certificates
 
 WORKDIR /unpub
-COPY --from=build-server /unpub/unpub/build/server .
+COPY --from=build-server /unpub/unpub/build/server /usr/local/bin/unpub
 
-ENTRYPOINT [ "/unpub/server" ]
+ENTRYPOINT [ "unpub" ]
 
 HEALTHCHECK --interval=5s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${UNPUB_PORT} || exit 1
