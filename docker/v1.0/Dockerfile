@@ -4,7 +4,7 @@ FROM --platform=amd64 dart:stable AS build-server
 WORKDIR /
 RUN apt update && \
     apt install -y git && \
-    git clone https://github.com/dnys1/unpub.git
+    git clone -b uploader-email --depth 1 --single-branch https://github.com/dnys1/unpub.git
     
 WORKDIR /unpub/unpub
 RUN mkdir -p build && \
