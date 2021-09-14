@@ -22,13 +22,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Run(gitUrl, branch, url string) error {
-	dir, err := cloneGit(gitUrl, branch)
-	if err != nil {
-		return err
+func Run(localPath, gitUrl, branch, url string) error {
+	var dir string
+	var err error
+	if localPath != "" {
+		dir = filepath.Clean(localPath)
+	} else {
+		dir, err = cloneGit(gitUrl, branch)
+		if err != nil {
+			return err
+		}
 	}
 
-	packageDirs, err := gatherPackages(gitUrl, dir)
+	packageDirs, err := gatherPackages(dir)
 	if err != nil {
 		return err
 	}
@@ -82,11 +88,20 @@ func cloneGit(gitUrl, branch string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "git worktree failed")
 	}
-	err = wt.Checkout(&git.CheckoutOptions{
-		Hash:   *commit,
-		Branch: plumbing.NewBranchReferenceName(branch),
-		Create: true,
-	})
+	var checkoutOptions git.CheckoutOptions
+	newBranchName := plumbing.NewBranchReferenceName(branch)
+	if branch, err := repo.Branch(branch); branch == nil || err != nil {
+		checkoutOptions = git.CheckoutOptions{
+			Hash:   *commit,
+			Branch: newBranchName,
+			Create: true,
+		}
+	} else {
+		checkoutOptions = git.CheckoutOptions{
+			Branch: newBranchName,
+		}
+	}
+	err = wt.Checkout(&checkoutOptions)
 	if err != nil {
 		return "", errors.Wrap(err, "git checkout failed")
 	}
@@ -96,7 +111,7 @@ func cloneGit(gitUrl, branch string) (string, error) {
 
 // gatherPackages returns all the directories in the given directory tree
 // which are Dart packages (i.e. have a pubspec.yaml).
-func gatherPackages(gitUrl, dir string) ([]string, error) {
+func gatherPackages(dir string) ([]string, error) {
 	packageDirs := []string{}
 	const filename = ".gitignore"
 	ignoreFile, err := os.ReadFile(filepath.Join(dir, filename))
@@ -171,8 +186,8 @@ func createTarball(tempDir, packageDir string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	tarfile := filepath.Join(tempDir, filename)
-	gzipfile := filepath.Join(tempDir, filename+".gz")
+	tarfile := filename
+	gzipfile := tarfile + ".gz"
 
 	var xform string
 	currentOS := runtime.GOOS
@@ -247,7 +262,7 @@ func createTarball(tempDir, packageDir string) (*os.File, error) {
 		}
 	}
 
-	return os.Open(gzipfile)
+	return os.Open(filepath.Join(tempDir, gzipfile))
 }
 
 // uploadTarball pushes a tarball to a running unpub server.

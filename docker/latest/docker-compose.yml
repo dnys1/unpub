@@ -30,7 +30,6 @@ services:
             UNPUB_PORT: ${UNPUB_PORT}
             UNPUB_GIT_URL: ${UNPUB_GIT_URL}
             UNPUB_GIT_REF: ${UNPUB_GIT_REF}
-            UNPUB_PACKAGES: ${UNPUB_PACKAGES}
         depends_on: 
             - unpub
 

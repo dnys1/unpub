@@ -13,6 +13,7 @@ const (
 	envPort      = "UNPUB_PORT"
 	envGitUrl    = "UNPUB_GIT_URL"
 	envBranch    = "UNPUB_GIT_REF"
+	envLocalPath = "UNPUB_LOCAL_PATH"
 )
 
 func warnDefaultEnv(env string, defaultVal interface{}) {
@@ -20,12 +21,13 @@ func warnDefaultEnv(env string, defaultVal interface{}) {
 }
 
 func main() {
+	localPath := os.Getenv(envLocalPath)
 	gitUrl := os.Getenv(envGitUrl)
-	if gitUrl == "" {
-		log.Fatalf("must set %s\n", envGitUrl)
+	if localPath == "" && gitUrl == "" {
+		log.Fatalf("must set either %s or %s\n", envGitUrl, envLocalPath)
 	}
 	gitRef := os.Getenv(envBranch)
-	if gitRef == "" {
+	if localPath == "" && gitRef == "" {
 		gitRef = "main"
 		warnDefaultEnv(envBranch, gitRef)
 	}
@@ -40,7 +42,7 @@ func main() {
 		warnDefaultEnv(envPort, port)
 	}
 
-	if err := cmd.Run(gitUrl, gitRef, fmt.Sprintf("http://%s:%s", host, port)); err != nil {
+	if err := cmd.Run(localPath, gitUrl, gitRef, fmt.Sprintf("http://%s:%s", host, port)); err != nil {
 		log.Fatalln(err)
 	}
 
