@@ -1,0 +1,5 @@
+build/
+bin/
+
+**/*.g.dart
+.dart_tool/

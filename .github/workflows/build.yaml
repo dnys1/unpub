@@ -3,17 +3,40 @@ name: Docker
 on:
   push:
     branches:
-      - '*'
+      - main
   pull_request:
     branches:
-      - '*'
+      - main
 
 jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        go-version: [1.16, 1.17]
+        dart-version: [dev]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1.2
+        with:
+          sdk: ${{ matrix.dart-version }}
+      - name: Dart Version
+        run: dart --version
+      - name: Run Tests
+        run: go test -tags e2e -timeout 1m -v ./
+        timeout-minutes: 1
   docker-server:
     name: Docker (Server)
     strategy:
       matrix:
-        go-version: [1.16]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -40,18 +63,16 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v2
         with:
-          file: docker/latest/Dockerfile
           target: server
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: dnys1/unpub:latest
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
       - name: Image Digest
         run: echo ${{ steps.docker_build.outputs.digest }}
   docker-launcher:
     name: Docker (Launcher)
     strategy:
       matrix:
-        go-version: [1.16]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -78,10 +99,9 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v2
         with:
-          file: docker/latest/Dockerfile
           target: launcher
           platforms: linux/amd64,linux/arm64
           tags: dnys1/unpub-launcher:latest
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
       - name: Image Digest
         run: echo ${{ steps.docker_build.outputs.digest }}
