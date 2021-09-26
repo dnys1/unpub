@@ -29,8 +29,7 @@ jobs:
         with:
           sdk: ${{ matrix.dart-version }}
       - name: Run Tests
-        run: |
-          go test -v ./
+        run: go test -tags e2e -timeout 1m -v ./
   docker-server:
     name: Docker (Server)
     strategy:

@@ -53,13 +53,15 @@ func pubPublish(dir string) ([]byte, error) {
 	)
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader("y")
-	return cmd.CombinedOutput()
+	cmd.Stdout = os.Stdout
+	return nil, cmd.Run()
 }
 
 func pubGet(dir string) ([]byte, error) {
 	cmd := exec.Command("dart", "pub", "get")
 	cmd.Dir = dir
-	return cmd.CombinedOutput()
+	cmd.Stdout = os.Stdout
+	return nil, cmd.Run()
 }
 
 func TestE2E(t *testing.T) {
@@ -86,7 +88,9 @@ func TestE2E(t *testing.T) {
 
 	go func() {
 		err := httpServer.ListenAndServe()
-		require.NoError(err)
+		if err != nil {
+			require.NotErrorIs(err, http.ErrServerClosed)
+		}
 	}()
 
 	out, err := pubClean()
