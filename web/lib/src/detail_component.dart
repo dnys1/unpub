@@ -37,11 +37,11 @@ class DetailComponent implements OnInit, OnActivate {
   int activeTab = 0;
   bool packageExists = false;
 
-  String? get readmeHtml =>
-      package.readme == null ? null : markdownToHtml(package.readme!);
+  String get readmeHtml =>
+      package.readme == null ? '' : markdownToHtml(package.readme!);
 
-  String? get changelogHtml =>
-      package.changelog == null ? null : markdownToHtml(package.changelog!);
+  String get changelogHtml =>
+      package.changelog == null ? '' : markdownToHtml(package.changelog!);
 
   String get pubDevLink {
     var url = 'https://pub.dev/packages/$packageName';
@@ -67,11 +67,6 @@ class DetailComponent implements OnInit, OnActivate {
       appService.setLoading(true);
       try {
         package = await appService.fetchPackage(name, version);
-        await Future.delayed(Duration.zero); // Next tick
-        querySelector('#readme')
-            ?.setInnerHtml(readmeHtml, validator: _htmlValidator);
-        querySelector('#changelog')
-            ?.setInnerHtml(changelogHtml, validator: _htmlValidator);
         packageExists = true;
       } finally {
         appService.setLoading(false);

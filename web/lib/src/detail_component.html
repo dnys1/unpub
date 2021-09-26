@@ -23,8 +23,11 @@
       </li>
     </ul>
     <div class="detail-tabs-content main">
-      <section class="tab-content markdown-body" [class.-active]="activeTab == 0" id="readme"></section>
-      <section class="tab-content markdown-body" [class.-active]="activeTab == 1" id="changelog"></section>
+      <section class="tab-content markdown-body" [class.-active]="activeTab == 0" id="readme" [innerHtml]="readmeHtml">
+      </section>
+      <section class="tab-content markdown-body" [class.-active]="activeTab == 1" id="changelog"
+        [innerHtml]="changelogHtml">
+      </section>
       <section class="tab-content" [class.-active]="activeTab == 2">
         <table class="version-table">
           <thead>

@@ -344,7 +344,7 @@ outer:
 				writeInternalErr(w, err)
 				return
 			}
-			version.Readme = &str
+			version.Changelog = &str
 		}
 	}
 

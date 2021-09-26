@@ -35,13 +35,5 @@ class Routes {
     home,
     list,
     detail,
-    // RouteDefinition.redirect(
-    //   path: '',
-    //   redirectTo: RoutePaths.heroes.toUrl(),
-    // ),
-    // RouteDefinition(
-    //   path: '.*',
-    //   component: not_found_template.NotFoundComponentNgFactory,
-    // ),
   ];
 }

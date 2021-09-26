@@ -18,7 +18,7 @@ class AppComponent {
   final Router _router;
   AppComponent(this.appService, this._router);
 
-  submit() async {
+  Future<void> submit() async {
     if (appService.keyword == '') {
       return html.window.alert('keyword empty');
     }
