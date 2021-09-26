@@ -64,7 +64,14 @@ func NewUnpubBadgerDb(inMem bool, path string) (*UnpubLocalDb, error) {
 	if !inMem {
 		dbPath = filepath.Join(path, "db")
 	}
-	badgerDb, err := badger.Open(badger.DefaultOptions(dbPath).WithInMemory(inMem).WithValueLogFileSize(1 << 20))
+	badgerDb, err := badger.Open(
+		badger.
+			DefaultOptions(dbPath).
+			WithInMemory(inMem).
+			WithValueLogFileSize(2 << 20).
+			WithMemTableSize(4 << 20).
+			WithValueThreshold(1 << 10),
+	)
 	if err != nil {
 		return nil, err
 	}
