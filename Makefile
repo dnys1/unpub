@@ -19,8 +19,8 @@ build-frontend:
 
 .PHONY: build
 build: build-frontend
-	mkdir -p build
-	GOOS=linux GOARCH=amd64 go build -o bin/launcher_linux_amd64 .
-	go build -o bin/launcher_darwin_amd64 .
-	tar -czvf bin/launcher_linux_amd64.tar.gz -C bin launcher_linux_amd64
-	tar -czvf bin/launcher_darwin_amd64.tar.gz -C bin launcher_darwin_amd64
+	mkdir -p bin
+	GOOS=linux GOARCH=amd64 go build -o bin/unpub_linux_amd64 ./cmd/server
+	GOOS=darwin GOARCH=amd64 go build -o bin/unpub_darwin_amd64 ./cmd/server
+	tar -czvf bin/unpub_linux_amd64.tar.gz -C bin unpub_linux_amd64
+	tar -czvf bin/unpub_darwin_amd64.tar.gz -C bin unpub_darwin_amd64

@@ -41,6 +41,10 @@ type PkgVersion struct {
 	Version string
 }
 
+func (pv PkgVersion) Filename() string {
+	return fmt.Sprintf("%s_%s.tar.gz", pv.Package, pv.Version)
+}
+
 type InMemFS map[PkgVersion]*InMemFile
 
 type InMemFile struct {
@@ -148,6 +152,8 @@ type UnpubService interface {
 }
 
 type UnpubServiceImpl struct {
+	InMemory      bool
+	Path          string
 	DB            unpub.UnpubDb
 	UploaderEmail string
 	Addr          string
@@ -268,11 +274,35 @@ func (s *UnpubServiceImpl) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, ok := memFS[PkgVersion{Package: pkgName, Version: version}]
-	if !ok {
+	redirect := func() {
 		http.Redirect(w, r, fmt.Sprintf("https://pub.dev%s", r.URL.Path), http.StatusFound)
-		return
 	}
+
+	pkgVersion := PkgVersion{Package: pkgName, Version: version}
+
+	var file io.Reader
+	if s.InMemory {
+		memFile, ok := memFS[pkgVersion]
+		if !ok {
+			redirect()
+			return
+		}
+		file = bytes.NewReader(memFile.Data)
+	} else {
+		osFile, err := os.Open(filepath.Join(s.Path, pkgVersion.Filename()))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				redirect()
+				return
+			} else {
+				writeInternalErr(w, err)
+				return
+			}
+		}
+		defer osFile.Close()
+		file = osFile
+	}
+
 	if isPubClient(r) {
 		err := s.DB.IncreaseDownloads(pkgName, version)
 		if err != nil {
@@ -281,7 +311,7 @@ func (s *UnpubServiceImpl) Download(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	_, err := io.Copy(w, bytes.NewReader(file.Data))
+	_, err := io.Copy(w, file)
 	if err != nil {
 		log.Printf("Error sending download: %v\n", err)
 	}
@@ -433,18 +463,33 @@ outer:
 
 	// Add to filesystem
 	filename := fmt.Sprintf("%s.tar.gz", version.Version)
-	var data bytes.Buffer
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		writeInternalErr(w, err)
 		return
 	}
-	_, err = io.Copy(&data, file)
-	if err != nil {
-		writeInternalErr(w, err)
-		return
+
+	pkgVersion := PkgVersion{Package: pkg.Name, Version: version.Version}
+	if s.InMemory {
+		var data bytes.Buffer
+		_, err = io.Copy(&data, file)
+		if err != nil {
+			writeInternalErr(w, err)
+			return
+		}
+		memFS[pkgVersion] = NewInMemFile(filename, data.Bytes())
+	} else {
+		osFile, err := os.Create(filepath.Join(s.Path, pkgVersion.Filename()))
+		if err != nil {
+			writeInternalErr(w, err)
+			return
+		}
+		_, err = io.Copy(osFile, file)
+		if err != nil {
+			writeInternalErr(w, err)
+			return
+		}
 	}
-	memFS[PkgVersion{Package: pkg.Name, Version: version.Version}] = NewInMemFile(filename, data.Bytes())
 
 	http.Redirect(w, r, fmt.Sprintf("%s/api/packages/versions/newUploadFinish", s.Addr), http.StatusFound)
 }

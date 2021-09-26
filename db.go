@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"path/filepath"
 	"strings"
 
 	"github.com/dgraph-io/badger/v3"
@@ -58,13 +60,22 @@ type UnpubLocalDb struct {
 }
 
 func NewUnpubBadgerDb(inMem bool, path string) (*UnpubLocalDb, error) {
-	badgerDb, err := badger.Open(badger.DefaultOptions(path).WithInMemory(inMem).WithValueLogFileSize(1 << 20))
+	var dbPath string
+	if !inMem {
+		dbPath = filepath.Join(path, "db")
+	}
+	badgerDb, err := badger.Open(badger.DefaultOptions(dbPath).WithInMemory(inMem).WithValueLogFileSize(1 << 20))
 	if err != nil {
 		return nil, err
 	}
+	dbLoc := dbPath
+	if inMem {
+		dbLoc = "memory"
+	}
+	log.Printf("Opened DB at: %s", dbLoc)
 	return &UnpubLocalDb{
 		InMemory: inMem,
-		Path:     path,
+		Path:     dbPath,
 		db:       badgerDb,
 	}, nil
 }

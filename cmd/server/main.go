@@ -19,6 +19,8 @@ var (
 	launchUnpub   = flag.Bool("launch", false, "Seeds the unpub server using the provided environment variables")
 	port          = flag.Int("port", 0, "The port to run the server on")
 	uploaderEmail = flag.String("uploader-email", "", "The default uploader email to use")
+	inMemory      = flag.Bool("memory", false, "Runs the server in-memory, using no storage")
+	path          = flag.String("path", "", "Directory to store DB files (defaults to temp dir, only valid if memory=false)")
 )
 
 func init() {
@@ -27,7 +29,16 @@ func init() {
 }
 
 func main() {
-	db, err := unpub.NewUnpubBadgerDb(true, "")
+	if !*inMemory && *path == "" {
+		var err error
+		*path, err = os.MkdirTemp("", "unpub")
+		if err != nil {
+			log.Fatalf("error creating temp dir: %v\n", err)
+		}
+	} else if *inMemory {
+		*path = ""
+	}
+	db, err := unpub.NewUnpubBadgerDb(*inMemory, *path)
 	if err != nil {
 		log.Fatalf("error opening db: %v\n", err)
 	}
@@ -42,6 +53,8 @@ func main() {
 		}
 	}
 	svc := &UnpubServiceImpl{
+		InMemory:      *inMemory,
+		Path:          *path,
 		DB:            db,
 		UploaderEmail: *uploaderEmail,
 		Addr:          fmt.Sprintf("http://localhost:%d", *port),
@@ -56,6 +69,7 @@ func main() {
 	}
 
 	go func() {
+		log.Printf("Serving at %s\n", svc.Addr)
 		if err := server.ListenAndServe(); err != nil {
 			fmt.Fprintf(os.Stderr, "error in server: %v\n", err)
 		}
