@@ -3,15 +3,12 @@
 package unpub_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/dnys1/unpub"
 	"github.com/dnys1/unpub/server"
@@ -42,31 +39,6 @@ func newServer(t *testing.T) *server.UnpubServiceImpl {
 	}
 }
 
-func addFakeCredentials(t *testing.T) {
-	file, err := os.Create(filepath.Join(os.TempDir(), "pub-credentials.json"))
-	require.NoError(t, err)
-
-	err = json.NewEncoder(file).Encode(struct {
-		AccessToken   string   `json:"accessToken"`
-		RefreshToken  string   `json:"refreshToken"`
-		IDToken       string   `json:"idToken"`
-		TokenEndpoint string   `json:"tokenEndpoint"`
-		Scopes        []string `json:"scopes"`
-		Expiration    int64    `json:"expiration"`
-	}{
-		AccessToken:   "12345",
-		RefreshToken:  "12345",
-		IDToken:       "12345",
-		TokenEndpoint: "https://accounts.google.com/o/oauth2/token",
-		Scopes: []string{
-			"openid",
-			"https://www.googleapis.com/auth/userinfo.email",
-		},
-		Expiration: time.Now().Add(time.Hour).Unix(),
-	})
-	require.NoError(t, err)
-}
-
 func pubClean() ([]byte, error) {
 	cmd := exec.Command("dart", "pub", "cache", "clean")
 	cmd.Stdin = strings.NewReader("y")
@@ -77,7 +49,6 @@ func pubPublish(dir string) ([]byte, error) {
 	cmd := exec.Command("dart", "pub", "publish")
 	cmd.Env = append(
 		os.Environ(),
-		fmt.Sprintf("_PUB_TEST_CONFIG_DIR=%s", os.TempDir()),
 		fmt.Sprintf("PUB_HOSTED_URL=http://localhost:%s", unpubPort),
 	)
 	cmd.Dir = dir
@@ -90,7 +61,6 @@ func pubGet(dir string) ([]byte, error) {
 	cmd := exec.Command("dart", "pub", "get")
 	cmd.Env = append(
 		os.Environ(),
-		fmt.Sprintf("_PUB_TEST_CONFIG_DIR=%s", os.TempDir()),
 	)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
@@ -108,8 +78,6 @@ func TestE2E(t *testing.T) {
 	dartPath, err := exec.LookPath("dart")
 	require.NoError(err)
 	t.Logf("Found dart executable: %s\n", dartPath)
-
-	addFakeCredentials(t)
 
 	r := mux.NewRouter()
 	svc := newServer(t)

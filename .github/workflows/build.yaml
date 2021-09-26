@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.16, 1.17]
-        dart-version: [stable]
+        dart-version: [dev]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -28,6 +28,8 @@ jobs:
         uses: dart-lang/setup-dart@v1.2
         with:
           sdk: ${{ matrix.dart-version }}
+      - name: Dart Version
+        run: dart --version
       - name: Run Tests
         run: go test -tags e2e -timeout 1m -v ./
         timeout-minutes: 1
