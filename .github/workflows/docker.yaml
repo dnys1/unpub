@@ -46,7 +46,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
       - name: Image Digest
         run: echo ${{ steps.docker_build.outputs.digest }}
-        if: ${{ github.event_name != 'pull_request' }}
   docker-launcher:
     name: Docker (Launcher)
     strategy:
@@ -84,4 +83,3 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
       - name: Image Digest
         run: echo ${{ steps.docker_build.outputs.digest }}
-        if: ${{ github.event_name != 'pull_request' }}
