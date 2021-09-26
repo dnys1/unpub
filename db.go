@@ -11,30 +11,6 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-// type JSONTime time.Time
-
-// func (t *JSONTime) MarshalJSON() ([]byte, error) {
-// 	if t == nil {
-// 		return nil, errors.New("nil value")
-// 	}
-// 	m := time.Time(*t).Format(time.RFC3339)
-// 	return []byte(strconv.Quote(m)), nil
-// }
-
-// func (t *JSONTime) UnmarshalJSON(b []byte) error {
-// 	uq, err := strconv.Unquote(string(b))
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_t, err := time.Parse(time.RFC3339, uq)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_tt := JSONTime(_t)
-// 	*t = _tt
-// 	return nil
-// }
-
 type UnpubDbQuery struct {
 	Size       int
 	Page       int
@@ -67,10 +43,7 @@ func NewUnpubBadgerDb(inMem bool, path string) (*UnpubLocalDb, error) {
 	badgerDb, err := badger.Open(
 		badger.
 			DefaultOptions(dbPath).
-			WithInMemory(inMem).
-			WithValueLogFileSize(2 << 20).
-			WithMemTableSize(4 << 20).
-			WithValueThreshold(1 << 10),
+			WithInMemory(inMem),
 	)
 	if err != nil {
 		return nil, err
