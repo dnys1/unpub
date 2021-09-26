@@ -3,7 +3,7 @@ FROM --platform=amd64 dart:2.14 AS build-frontend
 
 WORKDIR /unpub
 
-RUN dart pub global activate webdev
+RUN dart pub global activate webdev 2.7.6
 
 COPY . .
 
@@ -27,7 +27,8 @@ COPY go.sum .
 RUN go mod download
 
 COPY . .
-COPY --from=build-frontend /unpub/web/build ./cmd/server/build
+COPY --from=build-frontend /unpub/web/build/index.html ./cmd/server/build/index.html
+COPY --from=build-frontend /unpub/web/build/main.dart.js ./cmd/server/build/main.dart.js
 
 ARG TARGETPLATFORM
 RUN mkdir -p build && \

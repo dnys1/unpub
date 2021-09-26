@@ -23,9 +23,6 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-//go:embed build/index.html
-var indexHtml []byte
-
 //go:embed build
 var staticFS embed.FS
 
@@ -51,10 +48,13 @@ func SetupRoutes(r *mux.Router, s UnpubService) {
 	r.Path("/api/packages/{name}/uploaders/{email}").Methods(http.MethodOptions, http.MethodDelete).HandlerFunc(s.RemoveUploader)
 	r.Path("/webapi/packages").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetPackages)
 	r.Path("/webapi/package/{name}/{version}").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetPackageDetails)
-	r.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(indexHtml)
-	})
+
+	staticFS, err := fs.Sub(staticFS, "build")
+	if err != nil {
+		panic(err)
+	}
 	r.PathPrefix("/").Handler(http.FileServer(http.FS(staticFS)))
+
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
