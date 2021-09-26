@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/dgraph-io/badger/v3"
 	"github.com/dnys1/unpub"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"golang.org/x/mod/semver"
 )
@@ -55,6 +58,9 @@ func SetupRoutes(r *mux.Router, s UnpubService) {
 	}
 	r.PathPrefix("/").Handler(http.FileServer(http.FS(staticFS)))
 
+	r.Use(func(next http.Handler) http.Handler {
+		return handlers.LoggingHandler(os.Stdout, next)
+	})
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -583,12 +589,14 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 }
 
 func writeInternalErr(w http.ResponseWriter, err error) {
+	log.Printf("internal server error: %v\n", err)
 	v := fmt.Sprintf("%v", err)
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write([]byte(v))
 }
 
 func writeBadRequest(w http.ResponseWriter, err error) {
+	log.Printf("bad request: %v\n", err)
 	v := fmt.Sprintf("%v", err)
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte(v))

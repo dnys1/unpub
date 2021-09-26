@@ -23,6 +23,7 @@ var (
 
 func init() {
 	flag.Parse()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
 func main() {
