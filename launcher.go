@@ -1,4 +1,4 @@
-package cmd
+package unpub
 
 import (
 	"bytes"
@@ -22,13 +22,72 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Run(localPath, gitUrl, branch, url string) error {
+const (
+	envUnpubHost = "UNPUB_HOST"
+	envPort      = "UNPUB_PORT"
+	envGitUrl    = "UNPUB_GIT_URL"
+	envBranch    = "UNPUB_GIT_REF"
+	envLocalPath = "UNPUB_LOCAL_PATH"
+)
+
+func warnDefaultEnv(env string, defaultVal interface{}) {
+	log.Printf("%s not provided, defaulting to %v\n", env, defaultVal)
+}
+
+type Launcher struct {
+	LocalPath  string
+	GitURL     string
+	Branch     string
+	ServerHost string
+	ServerPort string
+}
+
+func NewLaunchFromEnv(warn bool) *Launcher {
+	localPath := os.Getenv(envLocalPath)
+	gitUrl := os.Getenv(envGitUrl)
+	if localPath == "" && gitUrl == "" {
+		log.Fatalf("must set either %s or %s\n", envGitUrl, envLocalPath)
+	}
+	gitRef := os.Getenv(envBranch)
+	if localPath == "" && gitRef == "" {
+		gitRef = "main"
+		warnDefaultEnv(envBranch, gitRef)
+	}
+	host := os.Getenv(envUnpubHost)
+	if host == "" {
+		host = "unpub"
+		if warn {
+			warnDefaultEnv(envUnpubHost, host)
+		}
+	}
+	port := os.Getenv(envPort)
+	if port == "" {
+		port = "8000"
+		if warn {
+			warnDefaultEnv(envPort, port)
+		}
+	}
+
+	return &Launcher{
+		LocalPath:  localPath,
+		GitURL:     gitUrl,
+		Branch:     gitRef,
+		ServerHost: host,
+		ServerPort: port,
+	}
+}
+
+func (l *Launcher) ServerURL() string {
+	return fmt.Sprintf("http://%s:%s", l.ServerHost, l.ServerPort)
+}
+
+func (l *Launcher) Run() error {
 	var dir string
 	var err error
-	if localPath != "" {
-		dir = filepath.Clean(localPath)
+	if l.LocalPath != "" {
+		dir = filepath.Clean(l.LocalPath)
 	} else {
-		dir, err = cloneGit(gitUrl, branch)
+		dir, err = cloneGit(l.GitURL, l.Branch)
 		if err != nil {
 			return err
 		}
@@ -42,10 +101,23 @@ func Run(localPath, gitUrl, branch, url string) error {
 		return fmt.Errorf("no packages found in git repo")
 	}
 
-	err = uploadPackages(packageDirs, dir, url)
+	err = uploadPackages(packageDirs, dir, l.ServerURL())
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("\nUnpub has been successfully seeded!")
+	fmt.Printf(`
+Add the following to your pubspec.yaml for each package you want to use:
+
+  package:
+    hosted:
+      name: package
+      url: %s
+    version: ^x.y.z
+	`, l.ServerURL())
+	fmt.Print("\nRemember to set an environment variable when publishing:\n\n")
+	fmt.Printf("  $ PUB_HOSTED_URL=%s pub publish\n\n", l.ServerURL())
 
 	return nil
 }

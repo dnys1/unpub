@@ -1,4 +1,4 @@
-package main
+package unpub
 
 import (
 	"database/sql/driver"
@@ -60,6 +60,15 @@ func (pubspec *Pubspec) Value() (driver.Value, error) {
 		return nil, errors.New("nil pubspec")
 	}
 	return yaml.Marshal(pubspec)
+}
+
+// Marshaller
+func (p *Pubspec) MarshalJSON() ([]byte, error) {
+	return yaml.Marshal(p)
+}
+
+func (p *Pubspec) UnmarshalJSON(b []byte) error {
+	return yaml.Unmarshal(b, p)
 }
 
 // Environment identifies the Dart environment.

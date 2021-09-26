@@ -1,10 +1,9 @@
-package main
+package unpub
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -16,29 +15,24 @@ var (
 
 func TestDB(t *testing.T) {
 	assert := assert.New(t)
-	db, err := NewUnpubLocalDb(true, "")
+	db, err := NewUnpubBadgerDb(true, "")
 	assert.NoError(err)
 	assert.NotNil(db)
 
-	pkg := &UnpubPackage{
-		Name:      packageName,
-		Uploaders: uploader,
-		Versions: []UnpubVersion{
-			{
-				Version: "0.0.1",
-				PubspecYAML: fmt.Sprintf(`
-				name: %s
-				version: 0.0.1
-				description: My package
-				`, packageName),
-				UnpubPackageName: packageName,
-			},
-		},
-		Private:   true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	err = db.AddVersion(packageName, pkg.Versions[0])
+	pkg := NewPackage(
+		packageName,
+		false,
+		[]string{uploader},
+	)
+	pkg.CreateVersion(
+		"0.0.1",
+		fmt.Sprintf(`
+name: %s
+version: 0.0.1
+description: My package`, packageName),
+		nil, nil, nil,
+	)
+	err = db.SavePackage(pkg)
 	assert.NoError(err)
 
 	getPkg, err := db.QueryPackage(packageName)
