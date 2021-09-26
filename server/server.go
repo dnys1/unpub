@@ -11,7 +11,6 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -255,11 +254,7 @@ func (s *UnpubServiceImpl) GetUploadUrl(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *UnpubServiceImpl) Upload(w http.ResponseWriter, r *http.Request) {
-	email, err := s.getUploaderEmail(r)
-	if err != nil {
-		writeBadRequest(w, err)
-		return
-	}
+	email := s.UploaderEmail
 	reader, err := r.MultipartReader()
 	if err != nil {
 		writeInternalErr(w, err)
@@ -449,11 +444,7 @@ func (s *UnpubServiceImpl) AddUploader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploaderEmail, err := s.getUploaderEmail(r)
-	if err != nil {
-		writeBadRequest(w, err)
-		return
-	}
+	uploaderEmail := s.UploaderEmail
 
 	pkg, err := s.DB.QueryPackage(pkgName)
 	if err != nil {
@@ -499,11 +490,7 @@ func (s *UnpubServiceImpl) RemoveUploader(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	uploaderEmail, err := s.getUploaderEmail(r)
-	if err != nil {
-		writeBadRequest(w, err)
-		return
-	}
+	uploaderEmail := s.UploaderEmail
 
 	pkg, err := s.DB.QueryPackage(pkgName)
 	if err != nil {
@@ -702,57 +689,6 @@ func writeBadRequest(w http.ResponseWriter, err error) {
 func isPubClient(r *http.Request) bool {
 	userAgent := r.Header.Get("User-Agent")
 	return strings.Contains(strings.ToLower(userAgent), "dart pub")
-}
-
-func (s *UnpubServiceImpl) getUploaderEmail(r *http.Request) (string, error) {
-	var (
-		unauthorized = errors.New("missing authorization")
-	)
-
-	if s.UploaderEmail != "" {
-		return s.UploaderEmail, nil
-	}
-
-	auth := r.Header.Get("Authorization")
-	if auth == "" {
-		return "", unauthorized
-	}
-
-	fields := strings.Fields(auth)
-	if len(fields) != 2 {
-		return "", unauthorized
-	}
-	authToken := fields[1]
-
-	uri, err := url.Parse("https://oauth2.googleapis.com/tokeninfo")
-	if err != nil {
-		return "", err
-	}
-	q := uri.Query()
-	q.Add("access_token", authToken)
-	uri.RawQuery = q.Encode()
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, uri.String(), nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		return "", errors.New(string(body))
-	}
-	var tokenInfo struct {
-		Email string `json:"string"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&tokenInfo)
-	return tokenInfo.Email, err
 }
 
 // Guards

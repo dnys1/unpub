@@ -21,7 +21,7 @@ import (
 var (
 	launchUnpub   = flag.Bool("launch", false, "Seeds the unpub server using the provided environment variables")
 	port          = flag.Int("port", 0, "The port to run the server on")
-	uploaderEmail = flag.String("uploader-email", "", "The default uploader email to use")
+	uploaderEmail = flag.String("uploader-email", "test@example.com", "The default uploader email to use")
 	inMemory      = flag.Bool("memory", false, "Runs the server in-memory, using no storage")
 	path          = flag.String("path", "", "Directory to store DB files (defaults to temp dir, only valid if memory=false)")
 
