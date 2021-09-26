@@ -7,6 +7,7 @@ replace github.com/google/flatbuffers v1.12.0 => github.com/google/flatbuffers v
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/google/go-cmp v0.5.6
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1

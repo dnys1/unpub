@@ -2,9 +2,9 @@ package unpub
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,5 +37,5 @@ description: My package`, packageName),
 
 	getPkg, err := db.QueryPackage(packageName)
 	require.NoError(err)
-	require.Truef(reflect.DeepEqual(pkg, getPkg), "Want: %+v\nGot: %+v", pkg, getPkg)
+	require.Truef(cmp.Equal(pkg, getPkg), "Want: %+v\nGot: %+v", pkg, getPkg)
 }

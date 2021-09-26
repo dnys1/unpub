@@ -1,3 +1,5 @@
+// +build e2e
+
 package unpub_test
 
 import (
