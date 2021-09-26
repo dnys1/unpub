@@ -1,15 +1,13 @@
-package main
+package server
 
 import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -29,13 +27,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed build
-var staticFS embed.FS
-
-var (
-	memFS = InMemFS{}
-)
-
 type PkgVersion struct {
 	Package string
 	Version string
@@ -43,69 +34,6 @@ type PkgVersion struct {
 
 func (pv PkgVersion) Filename() string {
 	return fmt.Sprintf("%s_%s.tar.gz", pv.Package, pv.Version)
-}
-
-type InMemFS map[PkgVersion]*InMemFile
-
-type InMemFile struct {
-	Name string
-	Data []byte
-	Info *InMemFileInfo
-}
-type InMemFileInfo struct {
-	name      string
-	size      int64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-func NewInMemFile(name string, data []byte) *InMemFile {
-	return &InMemFile{
-		Name: name,
-		Data: data,
-		Info: &InMemFileInfo{
-			name:      name,
-			size:      int64(len(data)),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-	}
-}
-
-func (info *InMemFileInfo) Name() string {
-	return info.name
-}
-
-func (info *InMemFileInfo) Size() int64 {
-	return info.size
-}
-
-func (info *InMemFileInfo) Mode() fs.FileMode {
-	return 0777
-}
-
-func (info *InMemFileInfo) ModTime() time.Time {
-	return info.UpdatedAt
-}
-
-func (info *InMemFileInfo) IsDir() bool {
-	return false
-}
-
-func (info *InMemFileInfo) Sys() interface{} {
-	return nil
-}
-
-func (f *InMemFile) Stat() (fs.FileInfo, error) {
-	return f.Info, nil
-}
-
-func (f *InMemFile) Read(p []byte) (int, error) {
-	return bytes.NewReader(f.Data).Read(p)
-}
-
-func (f *InMemFile) Close() error {
-	return nil
 }
 
 func SetupRoutes(r *mux.Router, s UnpubService) {
@@ -119,12 +47,6 @@ func SetupRoutes(r *mux.Router, s UnpubService) {
 	r.Path("/api/packages/{name}/uploaders/{email}").Methods(http.MethodOptions, http.MethodDelete).HandlerFunc(s.RemoveUploader)
 	r.Path("/webapi/packages").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetPackages)
 	r.Path("/webapi/package/{name}/{version}").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetPackageDetails)
-
-	staticFS, err := fs.Sub(staticFS, "build")
-	if err != nil {
-		panic(err)
-	}
-	r.PathPrefix("/").Handler(http.FileServer(http.FS(staticFS)))
 
 	r.Use(func(next http.Handler) http.Handler {
 		return handlers.LoggingHandler(os.Stdout, next)
@@ -278,17 +200,21 @@ func (s *UnpubServiceImpl) Download(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("https://pub.dev%s", r.URL.Path), http.StatusFound)
 	}
 
-	pkgVersion := PkgVersion{Package: pkgName, Version: version}
-
 	var file io.Reader
+	var err error
 	if s.InMemory {
-		memFile, ok := memFS[pkgVersion]
-		if !ok {
-			redirect()
-			return
+		file, err = s.DB.GetFile(pkgName, version)
+		if err != nil {
+			if errors.Is(err, badger.ErrKeyNotFound) {
+				redirect()
+				return
+			} else {
+				writeInternalErr(w, err)
+				return
+			}
 		}
-		file = bytes.NewReader(memFile.Data)
 	} else {
+		pkgVersion := PkgVersion{Package: pkgName, Version: version}
 		osFile, err := os.Open(filepath.Join(s.Path, pkgVersion.Filename()))
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -311,7 +237,7 @@ func (s *UnpubServiceImpl) Download(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	_, err := io.Copy(w, file)
+	_, err = io.Copy(w, file)
 	if err != nil {
 		log.Printf("Error sending download: %v\n", err)
 	}
@@ -462,7 +388,6 @@ outer:
 	}
 
 	// Add to filesystem
-	filename := fmt.Sprintf("%s.tar.gz", version.Version)
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		writeInternalErr(w, err)
@@ -477,7 +402,11 @@ outer:
 			writeInternalErr(w, err)
 			return
 		}
-		memFS[pkgVersion] = NewInMemFile(filename, data.Bytes())
+		err = s.DB.SaveFile(pkg.Name, version.Version, data.Bytes())
+		if err != nil {
+			writeInternalErr(w, err)
+			return
+		}
 	} else {
 		osFile, err := os.Create(filepath.Join(s.Path, pkgVersion.Filename()))
 		if err != nil {

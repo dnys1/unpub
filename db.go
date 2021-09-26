@@ -1,9 +1,11 @@
 package unpub
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"strings"
@@ -27,6 +29,8 @@ type UnpubDb interface {
 	AddUploader(name, email string) error
 	RemoveUploader(name, email string) error
 	IncreaseDownloads(name, version string) error
+	SaveFile(pkgName, version string, data []byte) error
+	GetFile(pkgName, version string) (io.Reader, error)
 }
 
 type UnpubLocalDb struct {
@@ -35,7 +39,7 @@ type UnpubLocalDb struct {
 	db       *badger.DB
 }
 
-func NewUnpubBadgerDb(inMem bool, path string) (*UnpubLocalDb, error) {
+func NewUnpubLocalDb(inMem bool, path string) (*UnpubLocalDb, error) {
 	var dbPath string
 	if !inMem {
 		dbPath = filepath.Join(path, "db")
@@ -62,10 +66,15 @@ func NewUnpubBadgerDb(inMem bool, path string) (*UnpubLocalDb, error) {
 
 const (
 	packagePrefix = "package_"
+	filePrefix    = "file_"
 )
 
 func makePackageKey(packageName string) []byte {
 	return []byte(fmt.Sprintf("%s%s", packagePrefix, packageName))
+}
+
+func makeFileKey(packageName, version string) []byte {
+	return []byte(fmt.Sprintf("%s%s_%s", filePrefix, packageName, version))
 }
 
 func (db *UnpubLocalDb) Close() error {
@@ -172,6 +181,29 @@ func (db *UnpubLocalDb) IncreaseDownloads(name, version string) error {
 	}
 	pkg.Downloads++
 	return db.SavePackage(pkg)
+}
+
+func (db *UnpubLocalDb) SaveFile(pkgName, version string, data []byte) error {
+	return db.db.Update(func(txn *badger.Txn) error {
+		return txn.Set(makeFileKey(pkgName, version), data)
+	})
+}
+
+func (db *UnpubLocalDb) GetFile(pkgName, version string) (io.Reader, error) {
+	var data []byte
+	err := db.db.View(func(txn *badger.Txn) error {
+		key := makeFileKey(pkgName, version)
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+		data, err = item.ValueCopy(nil)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(data), err
 }
 
 // Interface guard

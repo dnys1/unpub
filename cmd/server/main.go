@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/dnys1/unpub"
+	"github.com/dnys1/unpub/server"
 	"github.com/gorilla/mux"
 )
 
@@ -21,6 +24,9 @@ var (
 	uploaderEmail = flag.String("uploader-email", "", "The default uploader email to use")
 	inMemory      = flag.Bool("memory", false, "Runs the server in-memory, using no storage")
 	path          = flag.String("path", "", "Directory to store DB files (defaults to temp dir, only valid if memory=false)")
+
+	//go:embed build
+	staticFS embed.FS
 )
 
 func init() {
@@ -38,7 +44,7 @@ func main() {
 	} else if *inMemory {
 		*path = ""
 	}
-	db, err := unpub.NewUnpubBadgerDb(*inMemory, *path)
+	db, err := unpub.NewUnpubLocalDb(*inMemory, *path)
 	if err != nil {
 		log.Fatalf("error opening db: %v\n", err)
 	}
@@ -52,7 +58,7 @@ func main() {
 			*port = 4000
 		}
 	}
-	svc := &UnpubServiceImpl{
+	svc := &server.UnpubServiceImpl{
 		InMemory:      *inMemory,
 		Path:          *path,
 		DB:            db,
@@ -61,7 +67,13 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	SetupRoutes(r, svc)
+	server.SetupRoutes(r, svc)
+
+	staticFS, err := fs.Sub(staticFS, "build")
+	if err != nil {
+		panic(err)
+	}
+	r.PathPrefix("/").Handler(http.FileServer(http.FS(staticFS)))
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", *port),

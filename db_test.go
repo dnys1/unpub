@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -14,10 +14,10 @@ var (
 )
 
 func TestDB(t *testing.T) {
-	assert := assert.New(t)
-	db, err := NewUnpubBadgerDb(true, "")
-	assert.NoError(err)
-	assert.NotNil(db)
+	require := require.New(t)
+	db, err := NewUnpubLocalDb(true, "")
+	require.NoError(err)
+	require.NotNil(db)
 
 	pkg := NewPackage(
 		packageName,
@@ -33,9 +33,9 @@ description: My package`, packageName),
 		nil, nil, nil,
 	)
 	err = db.SavePackage(pkg)
-	assert.NoError(err)
+	require.NoError(err)
 
 	getPkg, err := db.QueryPackage(packageName)
-	assert.NoError(err)
-	assert.Truef(reflect.DeepEqual(pkg, getPkg), "Want: %+v\nGot: %+v", pkg, getPkg)
+	require.NoError(err)
+	require.Truef(reflect.DeepEqual(pkg, getPkg), "Want: %+v\nGot: %+v", pkg, getPkg)
 }
