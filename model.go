@@ -1,7 +1,8 @@
 package unpub
 
 import (
-	"sort"
+	"errors"
+	"fmt"
 	"time"
 
 	"golang.org/x/mod/semver"
@@ -44,9 +45,9 @@ type WebAPIDetailView struct {
 type UnpubVersion struct {
 	Version     string    `json:"version"`
 	PubspecYAML string    `json:"pubspecYaml"`
-	Uploader    *string   `json:"uploader"`
-	Readme      *string   `json:"readme"`
-	Changelog   *string   `json:"changelog"`
+	Uploader    *string   `json:"uploader,omitempty"`
+	Readme      *string   `json:"readme,omitempty"`
+	Changelog   *string   `json:"changelog,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
@@ -56,18 +57,35 @@ func (v UnpubVersion) Pubspec() (*Pubspec, error) {
 	return &pubspec, yaml.Unmarshal([]byte(v.PubspecYAML), &pubspec)
 }
 
-type UnpubPackage struct {
-	Name      string         `json:"name"`
-	Versions  []UnpubVersion `json:"versions"`
-	Private   bool           `json:"private"`
-	Uploaders []string       `json:"uploaders"`
-	Downloads int            `json:"download"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
+func UnpubVersions(versionMap map[string]UnpubVersion) []UnpubVersion {
+	var unpubVersions []UnpubVersion
+	for _, v := range versionMap {
+		unpubVersions = append(unpubVersions, v)
+	}
+	return unpubVersions
 }
 
-func (pkg *UnpubPackage) AddVersion(version UnpubVersion) {
-	pkg.Versions = append(pkg.Versions, version)
+type UnpubPackage struct {
+	Name      string                  `json:"name"`
+	Versions  map[string]UnpubVersion `json:"versions"`
+	Latest    string                  `json:"latest"`
+	Private   bool                    `json:"private"`
+	Uploaders []string                `json:"uploaders"`
+	Downloads int                     `json:"download"`
+	CreatedAt time.Time               `json:"createdAt"`
+	UpdatedAt time.Time               `json:"updatedAt"`
+}
+
+func (pkg *UnpubPackage) AddVersion(version UnpubVersion) error {
+	if _, ok := pkg.Versions[version.Version]; ok {
+		return errors.New("version already exists")
+	}
+	if pkg.Latest != "" && semver.Compare(pkg.Latest, version.Version) != 1 {
+		return fmt.Errorf("version must be > %s", pkg.Latest)
+	}
+	pkg.Versions[version.Version] = version
+	pkg.Latest = version.Version
+	return nil
 }
 
 func (pkg *UnpubPackage) CreateVersion(
@@ -76,7 +94,7 @@ func (pkg *UnpubPackage) CreateVersion(
 	uploader,
 	readme,
 	changelog *string,
-) UnpubVersion {
+) (UnpubVersion, error) {
 	v := UnpubVersion{
 		Version:     version,
 		PubspecYAML: pubspec,
@@ -86,8 +104,7 @@ func (pkg *UnpubPackage) CreateVersion(
 		CreatedAt:   time.Now().Truncate(time.Millisecond),
 		UpdatedAt:   time.Now().Truncate(time.Millisecond),
 	}
-	pkg.Versions = append(pkg.Versions, v)
-	return v
+	return v, pkg.AddVersion(v)
 }
 
 func NewPackage(
@@ -100,17 +117,14 @@ func NewPackage(
 		Private:   private,
 		Uploaders: uploaders,
 		Downloads: 0,
+		Versions:  make(map[string]UnpubVersion),
 		CreatedAt: time.Now().Truncate(time.Millisecond),
 		UpdatedAt: time.Now().Truncate(time.Millisecond),
 	}
 }
 
 func (pkg *UnpubPackage) LatestVersion() UnpubVersion {
-	sort.Slice(pkg.Versions, func(i, j int) bool {
-		return semver.Compare(pkg.Versions[i].Version, pkg.Versions[j].Version) == -1
-	})
-
-	return pkg.Versions[len(pkg.Versions)-1]
+	return pkg.Versions[pkg.Latest]
 }
 
 func (pkg *UnpubPackage) ToListApiPackage() ListApiPackage {

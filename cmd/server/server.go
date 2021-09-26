@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"embed"
 	"encoding/json"
@@ -18,12 +19,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dgraph-io/badger/v3"
 	"github.com/dnys1/unpub"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"golang.org/x/mod/semver"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed build
@@ -38,12 +41,73 @@ type PkgVersion struct {
 	Version string
 }
 
-type InMemFS map[PkgVersion]fs.File
+type InMemFS map[PkgVersion]*InMemFile
+
+type InMemFile struct {
+	Name string
+	Data []byte
+	Info *InMemFileInfo
+}
+type InMemFileInfo struct {
+	name      string
+	size      int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func NewInMemFile(name string, data []byte) *InMemFile {
+	return &InMemFile{
+		Name: name,
+		Data: data,
+		Info: &InMemFileInfo{
+			name:      name,
+			size:      int64(len(data)),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+}
+
+func (info *InMemFileInfo) Name() string {
+	return info.name
+}
+
+func (info *InMemFileInfo) Size() int64 {
+	return info.size
+}
+
+func (info *InMemFileInfo) Mode() fs.FileMode {
+	return 0777
+}
+
+func (info *InMemFileInfo) ModTime() time.Time {
+	return info.UpdatedAt
+}
+
+func (info *InMemFileInfo) IsDir() bool {
+	return false
+}
+
+func (info *InMemFileInfo) Sys() interface{} {
+	return nil
+}
+
+func (f *InMemFile) Stat() (fs.FileInfo, error) {
+	return f.Info, nil
+}
+
+func (f *InMemFile) Read(p []byte) (int, error) {
+	return bytes.NewReader(f.Data).Read(p)
+}
+
+func (f *InMemFile) Close() error {
+	return nil
+}
 
 func SetupRoutes(r *mux.Router, s UnpubService) {
 	r.Path("/api/packages/{name}").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetVersions)
 	r.Path("/api/packages/{name}/versions/{version}").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetVersion)
-	r.Path("/packages{name}/versions/{version}.tar.gz").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.Download)
+	r.Path("/packages/{name}/versions/{version}.tar.gz").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.Download)
 	r.Path("/api/packages/versions/new").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.GetUploadUrl)
 	r.Path("/api/packages/versions/newUpload").Methods(http.MethodOptions, http.MethodPost).HandlerFunc(s.Upload)
 	r.Path("/api/packages/versions/newUploadFinish").Methods(http.MethodOptions, http.MethodGet).HandlerFunc(s.UploadFinish)
@@ -98,25 +162,60 @@ func (s *UnpubServiceImpl) GetVersions(w http.ResponseWriter, r *http.Request) {
 	pkg, err := s.DB.QueryPackage(pkgName)
 	if err != nil {
 		if errors.Is(err, badger.ErrKeyNotFound) {
-			w.WriteHeader(http.StatusNotFound)
+			http.Redirect(w, r, fmt.Sprintf("https://pub.dev%s", r.URL.Path), http.StatusFound)
 			return
 		}
 		writeInternalErr(w, err)
 		return
 	}
 
-	sort.Slice(pkg.Versions, func(i, j int) bool {
-		return semver.Compare(pkg.Versions[i].Version, pkg.Versions[j].Version) == -1
+	versions := unpub.UnpubVersions(pkg.Versions)
+	sort.Slice(versions, func(i, j int) bool {
+		return semver.Compare(versions[i].Version, versions[j].Version) == -1
 	})
 
+	type respVersion struct {
+		ArchiveURL string                 `json:"archive_url"`
+		Pubspec    map[string]interface{} `json:"pubspec"`
+		Version    string                 `json:"version"`
+	}
+	toJson := func(version unpub.UnpubVersion) (respVersion, error) {
+		var pubspecMap map[string]interface{}
+		err := yaml.Unmarshal([]byte(version.PubspecYAML), &pubspecMap)
+		if err != nil {
+			return respVersion{}, err
+		}
+		return respVersion{
+			ArchiveURL: fmt.Sprintf("%s/packages/%s/versions/%s.tar.gz", s.Addr, pkg.Name, version.Version),
+			Pubspec:    pubspecMap,
+			Version:    version.Version,
+		}, nil
+	}
+
+	latest, err := toJson(pkg.LatestVersion())
+	if err != nil {
+		writeBadRequest(w, err)
+		return
+	}
+
+	respVersions := []respVersion{}
+	for _, version := range versions {
+		v, err := toJson(version)
+		if err != nil {
+			writeBadRequest(w, err)
+			return
+		}
+		respVersions = append(respVersions, v)
+	}
+
 	resp := struct {
-		Name     string               `json:"name"`
-		Latest   unpub.UnpubVersion   `json:"latest"`
-		Versions []unpub.UnpubVersion `json:"versions"`
+		Name     string        `json:"name"`
+		Latest   respVersion   `json:"latest"`
+		Versions []respVersion `json:"versions"`
 	}{
 		Name:     pkg.Name,
-		Latest:   pkg.Versions[len(pkg.Versions)-1],
-		Versions: pkg.Versions,
+		Latest:   latest,
+		Versions: respVersions,
 	}
 	writeJSON(w, resp)
 }
@@ -133,7 +232,6 @@ func (s *UnpubServiceImpl) GetVersion(w http.ResponseWriter, r *http.Request) {
 		writeBadRequest(w, nil)
 		return
 	}
-	version = semver.Canonical(version)
 
 	pkg, err := s.DB.QueryPackage(pkgName)
 	if err != nil {
@@ -151,7 +249,7 @@ func (s *UnpubServiceImpl) GetVersion(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if foundVersion == nil {
-		w.WriteHeader(http.StatusNotFound)
+		http.NotFound(w, r)
 		return
 	}
 	writeJSON(w, foundVersion)
@@ -169,7 +267,6 @@ func (s *UnpubServiceImpl) Download(w http.ResponseWriter, r *http.Request) {
 		writeBadRequest(w, nil)
 		return
 	}
-	version = semver.Canonical(version)
 
 	file, ok := memFS[PkgVersion{Package: pkgName, Version: version}]
 	if !ok {
@@ -183,13 +280,11 @@ func (s *UnpubServiceImpl) Download(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	st, err := file.Stat()
-	if err != nil {
-		writeInternalErr(w, err)
-		return
-	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	http.ServeContent(w, r, filepath.Base(r.URL.Path), st.ModTime(), file.(io.ReadSeeker))
+	_, err := io.Copy(w, bytes.NewReader(file.Data))
+	if err != nil {
+		log.Printf("Error sending download: %v\n", err)
+	}
 }
 
 func (s *UnpubServiceImpl) GetUploadUrl(w http.ResponseWriter, r *http.Request) {
@@ -254,7 +349,11 @@ outer:
 		return sb.String(), err
 	}
 
-	var version unpub.UnpubVersion
+	version := unpub.UnpubVersion{
+		Uploader:  &email,
+		CreatedAt: time.Now().Truncate(time.Millisecond),
+		UpdatedAt: time.Now().Truncate(time.Millisecond),
+	}
 	for {
 		header, err := tr.Next()
 
@@ -275,6 +374,12 @@ outer:
 				return
 			}
 			version.PubspecYAML = str
+			pubspec, err := version.Pubspec()
+			if err != nil {
+				writeBadRequest(w, fmt.Errorf("bad pubspec: %v", err))
+				return
+			}
+			version.Version = pubspec.Version
 		case "readme.md":
 			str, err := readFile(header)
 			if err != nil {
@@ -315,12 +420,31 @@ outer:
 			return
 		}
 	}
-	pkg.AddVersion(version)
+	err = pkg.AddVersion(version)
+	if err != nil {
+		writeBadRequest(w, err)
+		return
+	}
 	err = s.DB.SavePackage(pkg)
 	if err != nil {
 		writeInternalErr(w, err)
 		return
 	}
+
+	// Add to filesystem
+	filename := fmt.Sprintf("%s.tar.gz", version.Version)
+	var data bytes.Buffer
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		writeInternalErr(w, err)
+		return
+	}
+	_, err = io.Copy(&data, file)
+	if err != nil {
+		writeInternalErr(w, err)
+		return
+	}
+	memFS[PkgVersion{Package: pkg.Name, Version: version.Version}] = NewInMemFile(filename, data.Bytes())
 
 	http.Redirect(w, r, fmt.Sprintf("%s/api/packages/versions/newUploadFinish", s.Addr), http.StatusFound)
 }
@@ -499,12 +623,11 @@ func (s *UnpubServiceImpl) GetPackageDetails(w http.ResponseWriter, r *http.Requ
 		writeBadRequest(w, nil)
 		return
 	}
-	version = semver.Canonical(version)
 
 	pkg, err := s.DB.QueryPackage(pkgName)
 	if err != nil {
 		if errors.Is(err, badger.ErrKeyNotFound) {
-			w.WriteHeader(http.StatusNotFound)
+			http.NotFound(w, r)
 			return
 		}
 		writeInternalErr(w, err)
@@ -525,8 +648,10 @@ func (s *UnpubServiceImpl) GetPackageDetails(w http.ResponseWriter, r *http.Requ
 		http.NotFound(w, r)
 		return
 	}
-	sort.Slice(pkg.Versions, func(i, j int) bool {
-		return semver.Compare(pkg.Versions[i].Version, pkg.Versions[j].Version) == -1
+
+	versions := unpub.UnpubVersions(pkg.Versions)
+	sort.Slice(versions, func(i, j int) bool {
+		return semver.Compare(versions[i].Version, versions[j].Version) == -1
 	})
 
 	var detailViewVersions []unpub.DetailViewVersion
@@ -574,8 +699,6 @@ func (s *UnpubServiceImpl) GetPackageDetails(w http.ResponseWriter, r *http.Requ
 		Data: data,
 	})
 }
-
-var _ = (UnpubService)(&UnpubServiceImpl{})
 
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	b, err := json.Marshal(v)
@@ -657,3 +780,7 @@ func (s *UnpubServiceImpl) getUploaderEmail(r *http.Request) (string, error) {
 	err = json.NewDecoder(resp.Body).Decode(&tokenInfo)
 	return tokenInfo.Email, err
 }
+
+// Guards
+
+var _ = (UnpubService)(&UnpubServiceImpl{})
