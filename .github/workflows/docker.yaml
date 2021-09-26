@@ -3,14 +3,17 @@ name: Docker
 on:
   push:
     branches:
-      - 'main'
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   docker-server:
     name: Docker (Server)
     strategy:
       matrix:
-        go-version: [1.16]
+        go-version: [1.17]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,16 +41,17 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           target: server
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: dnys1/unpub:latest
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
       - name: Image Digest
         run: echo ${{ steps.docker_build.outputs.digest }}
+        if: ${{ github.event_name != 'pull_request' }}
   docker-launcher:
     name: Docker (Launcher)
     strategy:
       matrix:
-        go-version: [1.16]
+        go-version: [1.17]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -77,6 +81,7 @@ jobs:
           target: launcher
           platforms: linux/amd64,linux/arm64
           tags: dnys1/unpub-launcher:latest
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
       - name: Image Digest
         run: echo ${{ steps.docker_build.outputs.digest }}
+        if: ${{ github.event_name != 'pull_request' }}
