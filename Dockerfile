@@ -9,6 +9,7 @@ COPY . .
 
 WORKDIR /unpub/web 
 RUN dart pub get && \
+    dart run build_runner build --delete-conflicting-outputs && \
     dart pub global run webdev build
 
 # Build the server
