@@ -23,10 +23,24 @@ The server is controlled by the following flags:
 
 > Requires Go 1.16 or higher
 
-To build the server with bundled launcher, run:
+To build the server with bundled launcher, run the following commands:
 
 ```sh
-$ go build -o unpub ./cmd/server
+#!/bin/sh
+
+# Build the frontend
+pushd web
+dart pub get
+dart run build_runner build --delete-conflicting-outputs
+dart pub global activate webdev
+webdev build
+popd
+
+cp web/build/index.html cmd/server/build/index.html
+cp web/build/main.dart.js cmd/server/build/main.dart.js
+
+# Build the server
+go build -o unpub ./cmd/server
 ```
 
 To build the standalone launcher:
