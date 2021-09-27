@@ -24,3 +24,7 @@ build: build-frontend
 	GOOS=darwin GOARCH=amd64 go build -o bin/unpub_darwin_amd64 ./cmd/server
 	tar -czvf bin/unpub_linux_amd64.tar.gz -C bin unpub_linux_amd64
 	tar -czvf bin/unpub_darwin_amd64.tar.gz -C bin unpub_darwin_amd64
+
+.PHONY: test
+test:
+	go test -tags e2e -timeout 1m -v ./
