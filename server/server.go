@@ -317,7 +317,13 @@ outer:
 			return
 		}
 
-		switch strings.ToLower(filepath.Base(header.Name)) {
+		currentDir := filepath.Dir(header.Name)
+		if currentDir != "" && currentDir != "." {
+			continue
+		}
+
+		filename := strings.ToLower(filepath.Base(header.Name))
+		switch filename {
 		case "pubspec.yaml":
 			str, err := readFile(header)
 			if err != nil {

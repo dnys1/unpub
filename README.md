@@ -21,7 +21,7 @@ The server is controlled by the following flags:
 
 ## Build
 
-> Requires Go 1.16 or higher
+> Requires Go 1.16 or higher, and Dart 2.14 or higher
 
 To build the server with bundled launcher, run the following commands:
 

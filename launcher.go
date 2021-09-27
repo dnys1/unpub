@@ -212,16 +212,18 @@ func gatherPackages(dir string) ([]string, error) {
 			return nil
 		}
 		if d.Name() == "pubspec.yaml" {
-			file, err := os.ReadFile(path)
+			file, err := os.Open(path)
 			if err != nil {
 				return errors.Wrapf(err, "error reading file %s", path)
 			}
-			var yamlMap map[string]interface{}
-			err = yaml.Unmarshal(file, &yamlMap)
+			defer file.Close()
+
+			var pubspec Pubspec
+			err = yaml.NewDecoder(file).Decode(&pubspec)
 			if err != nil {
-				return errors.Wrapf(err, "error decoding yaml %s", path)
+				return errors.Wrapf(err, "error decoding pubspec")
 			}
-			if publishTo, ok := yamlMap["publish_to"]; ok && publishTo == "none" {
+			if strings.Contains(pubspec.PublishTo, "none") {
 				return nil
 			}
 			packageDir := filepath.Dir(path)
