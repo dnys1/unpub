@@ -1,9 +1,9 @@
 # Build the frontend
-FROM --platform=amd64 dart:2.14 AS build-frontend
+FROM --platform=amd64 dart:2.15 AS build-frontend
 
 WORKDIR /unpub
 
-RUN dart pub global activate webdev 2.7.6
+RUN dart pub global activate webdev 2.7.7
 
 COPY . .
 

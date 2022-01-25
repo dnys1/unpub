@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/kevinburke/ssh_config v1.1.0 // indirect
-	github.com/klauspost/compress v1.14.1 // indirect
+	github.com/klauspost/compress v1.14.2 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
@@ -27,8 +27,8 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
 	golang.org/x/mod v0.5.1
-	golang.org/x/net v0.0.0-20220111093109-d55c255bac03 // indirect
-	golang.org/x/sys v0.0.0-20220111092808-5a964db01320 // indirect
+	golang.org/x/net v0.0.0-20220121210141-e204ce36a2ba // indirect
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
