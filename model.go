@@ -80,7 +80,7 @@ func (pkg *UnpubPackage) AddVersion(version UnpubVersion) error {
 	if _, ok := pkg.Versions[version.Version]; ok {
 		return errors.New("version already exists")
 	}
-	if pkg.Latest != "" && semver.Compare(pkg.Latest, version.Version) != 1 {
+	if pkg.Latest != "" && semver.Compare("v"+pkg.Latest, "v"+version.Version) != -1 {
 		return fmt.Errorf("version must be > %s", pkg.Latest)
 	}
 	pkg.Versions[version.Version] = version
