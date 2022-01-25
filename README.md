@@ -1,6 +1,6 @@
 # Unpub
 
-Self-contained Unpub server which can be run in-memory or from the local filesystem. Includes a launcher which will seed the server with packages from a git repository. 
+Self-contained Unpub server which can be run in-memory or from the local filesystem. Includes a launcher which will seed the server with packages from a git repository.
 
 ## Usage
 
@@ -10,14 +10,14 @@ $ unpub
 
 The server is controlled by the following flags:
 
-| Flag | Function | Default |
-| -------- | -------- | ------- |
-| `-port` | The local port to run unpub on | 4000 |
-| `-memory` | Whether to run the server in-memory | `false` |
-| `-path` | Where to store files | Temp dir |
-| `-uploader-email` | The default uploader email to use | test@example.com |
-| `-launch` | Whether to run the launcher | `false` |
-
+| Flag              | Function                            | Default                   |
+| ----------------- | ----------------------------------- | ------------------------- |
+| `-port`           | The local port to run unpub on      | 4000                      |
+| `-memory`         | Whether to run the server in-memory | `false`                   |
+| `-path`           | Where to store files                | Temp dir                  |
+| `-uploader-email` | The default uploader email to use   | test@example.com          |
+| `-launch`         | Whether to run the launcher         | `false`                   |
+| `-addr`           | The address Unpub is running on     | `http://localhost:{PORT}` |
 
 ## Build
 
@@ -55,8 +55,8 @@ The tool looks for Dart packages by recursively walking the file tree and search
 
 The launcher is controlled with the following environment variables:
 
-| Variable | Function | Default |
-| -------- | -------- | ------- |
-| `UNPUB_PORT` | The local port running unpub | N/A (required) |
-| `UNPUB_GIT_URL` | The git url to clone | N/A (required) |
-| `UNPUB_GIT_REF` | The git ref to clone | main |
+| Variable        | Function                     | Default        |
+| --------------- | ---------------------------- | -------------- |
+| `UNPUB_PORT`    | The local port running unpub | N/A (required) |
+| `UNPUB_GIT_URL` | The git url to clone         | N/A (required) |
+| `UNPUB_GIT_REF` | The git ref to clone         | main           |
