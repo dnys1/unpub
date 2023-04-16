@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	unpubPort     = "4000"
+	unpubPort     = "5000"
 	uploaderEmail = "test@example.com"
 )
 
@@ -49,8 +49,14 @@ func pubClean() ([]byte, error) {
 func pubPublish(dir string) ([]byte, error) {
 	cmd := exec.Command("dart", "pub", "publish")
 	cmd.Dir = dir
+	cmd.Env = append(
+		os.Environ(),
+		fmt.Sprintf("PUB_HOSTED_URL=http://localhost:%s", unpubPort),
+	)
 	cmd.Stdin = strings.NewReader("y")
-	return cmd.CombinedOutput()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return nil, cmd.Run()
 }
 
 func pubGet(dir string) ([]byte, error) {
