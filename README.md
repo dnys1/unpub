@@ -12,7 +12,7 @@ The server is controlled by the following flags:
 
 | Flag              | Function                            | Default                   |
 | ----------------- | ----------------------------------- | ------------------------- |
-| `-port`           | The local port to run unpub on      | 4000                      |
+| `-port`           | The local port to run unpub on      | 5000                      |
 | `-memory`         | Whether to run the server in-memory | `false`                   |
 | `-path`           | Where to store files                | Temp dir                  |
 | `-uploader-email` | The default uploader email to use   | test@example.com          |

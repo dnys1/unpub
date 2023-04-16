@@ -56,7 +56,7 @@ func main() {
 				log.Fatalf("bad port: %v\n", err)
 			}
 		} else {
-			*port = 4000
+			*port = 5000
 		}
 	}
 	if *addr == "localhost" {

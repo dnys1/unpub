@@ -93,6 +93,15 @@ func (l *Launcher) Run() error {
 		}
 	}
 
+	// Special case for amplify-flutter. Run `aft bs`
+	// to generate JS code.
+	if strings.Contains(l.GitURL, "amplify-flutter") {
+		err = bootstrapRepo(dir)
+		if err != nil {
+			return errors.Wrap(err, "bootstrapping repo")
+		}
+	}
+
 	packageDirs, err := gatherPackages(dir)
 	if err != nil {
 		return err
@@ -181,22 +190,47 @@ func cloneGit(gitUrl, branch string) (string, error) {
 	return tmpDir, nil
 }
 
+// bootstrap repo activates the `aft` command and runs
+// `aft bootstrap` in the cloned repository.
+func bootstrapRepo(dir string) error {
+	err := runCommand(dir, "git", "submodule", "update", "--init")
+	if err != nil {
+		return errors.Wrap(err, "updating submodules")
+	}
+
+	err = runCommand(dir, "dart", "pub", "global", "activate", "-spath", "packages/aft")
+	if err != nil {
+		return errors.Wrap(err, "activating pub")
+	}
+
+	err = runCommand(dir, "dart", "pub", "global", "run", "aft", "bs")
+	if err != nil {
+		return errors.Wrap(err, "aft bootstrap")
+	}
+
+	return nil
+}
+
 // gatherPackages returns all the directories in the given directory tree
 // which are Dart packages (i.e. have a pubspec.yaml).
 func gatherPackages(dir string) ([]string, error) {
 	packageDirs := []string{}
 	const filename = ".gitignore"
-	ignoreFile, err := os.ReadFile(filepath.Join(dir, filename))
+	const pubignore = ".pubignore"
+	ignoreFile, _ := os.ReadFile(filepath.Join(dir, filename))
+	pubignoreFile, _ := os.ReadFile(filepath.Join(dir, pubignore))
 	var matcher *gitignore.Matcher
-	if err == nil {
-		var patterns []gitignore.Pattern
-		for _, line := range strings.Split(string(ignoreFile), "\n") {
-			pattern := gitignore.ParsePattern(line, []string{})
-			patterns = append(patterns, pattern)
-		}
-		m := gitignore.NewMatcher(patterns)
-		matcher = &m
+	var patterns []gitignore.Pattern
+	for _, line := range strings.Split(string(ignoreFile), "\n") {
+		pattern := gitignore.ParsePattern(line, []string{})
+		patterns = append(patterns, pattern)
 	}
+	for _, line := range strings.Split(string(pubignoreFile), "\n") {
+		pattern := gitignore.ParsePattern(line, []string{})
+		patterns = append(patterns, pattern)
+	}
+	m := gitignore.NewMatcher(patterns)
+	matcher = &m
 	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if d.Name() == ".git" && d.IsDir() {
 			return fs.SkipDir
@@ -373,4 +407,14 @@ func uploadTarball(tarball *os.File, url string) error {
 		return fmt.Errorf("http status %d: %s", resp.StatusCode, bb)
 	}
 	return nil
+}
+
+// runCommand runs the command and streams the output to the current
+// stdout/stderr.
+func runCommand(dir string, args ...string) error {
+	command := exec.Command(args[0], args[1:]...)
+	command.Dir = dir
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	return command.Run()
 }
