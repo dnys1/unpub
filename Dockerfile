@@ -1,9 +1,9 @@
 # Build the frontend
-FROM --platform=amd64 dart:2.15 AS build-frontend
+FROM --platform=$BUILDPLATFORM dart:stable AS build-frontend
 
 WORKDIR /unpub
 
-RUN dart pub global activate webdev 2.7.7
+RUN dart pub global activate webdev
 
 COPY . .
 
@@ -13,7 +13,7 @@ RUN dart pub get && \
     dart pub global run webdev build
 
 # Build the server
-FROM --platform=$BUILDPLATFORM golang:1.17 AS build-server
+FROM --platform=$BUILDPLATFORM golang:1.20 AS build-server
 
 WORKDIR /unpub
 
@@ -36,7 +36,7 @@ RUN mkdir -p build && \
     GOARCH=$(echo $TARGETPLATFORM | cut -d / -f 2) go build -o bin/server ./cmd/server
 
 # Build the launcher tool
-FROM --platform=$BUILDPLATFORM golang:1.17 AS build-launcher
+FROM --platform=$BUILDPLATFORM golang:1.20 AS build-launcher
 
 WORKDIR /unpub
 
@@ -57,7 +57,7 @@ RUN mkdir -p build && \
     GOARCH=$(echo $TARGETPLATFORM | cut -d / -f 2) go build -o bin/launcher ./cmd/launcher
 
 # Ouput the server image
-FROM ubuntu:hirsute AS server
+FROM ubuntu AS server
 
 RUN apt update && apt install -y ca-certificates
 
@@ -70,7 +70,7 @@ HEALTHCHECK --interval=5s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${UNPUB_PORT} || exit 1
 
 # Output the launcher image
-FROM ubuntu:hirsute AS launcher
+FROM ubuntu AS launcher
 
 RUN apt update && apt install -y ca-certificates
 

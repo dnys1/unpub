@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package unpub_test
@@ -35,7 +36,7 @@ func newServer(t *testing.T) *server.UnpubServiceImpl {
 		Path:          path,
 		DB:            db,
 		UploaderEmail: uploaderEmail,
-		Addr:          "http://localhost:4000",
+		Addr:          "http://localhost:5000",
 	}
 }
 
@@ -47,14 +48,9 @@ func pubClean() ([]byte, error) {
 
 func pubPublish(dir string) ([]byte, error) {
 	cmd := exec.Command("dart", "pub", "publish")
-	cmd.Env = append(
-		os.Environ(),
-		fmt.Sprintf("PUB_HOSTED_URL=http://localhost:%s", unpubPort),
-	)
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader("y")
-	cmd.Stdout = os.Stdout
-	return nil, cmd.Run()
+	return cmd.CombinedOutput()
 }
 
 func pubGet(dir string) ([]byte, error) {
@@ -63,8 +59,7 @@ func pubGet(dir string) ([]byte, error) {
 		os.Environ(),
 	)
 	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	return nil, cmd.Run()
+	return cmd.CombinedOutput()
 }
 
 func TestE2E(t *testing.T) {
@@ -92,7 +87,7 @@ func TestE2E(t *testing.T) {
 	go func() {
 		err := httpServer.ListenAndServe()
 		if err != nil {
-			require.NotErrorIs(err, http.ErrServerClosed)
+			require.ErrorIs(err, http.ErrServerClosed)
 		}
 	}()
 

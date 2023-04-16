@@ -1,4 +1,4 @@
-VERSION := 2.0
+VERSION := 2.1
 
 .PHONY: build-docker
 build-docker: build-server build-launcher
@@ -21,9 +21,13 @@ build-frontend:
 build: build-frontend
 	mkdir -p bin
 	GOOS=linux GOARCH=amd64 go build -o bin/unpub_linux_amd64 ./cmd/server
+	GOOS=linux GOARCH=arm64 go build -o bin/unpub_linux_arm64 ./cmd/server
 	GOOS=darwin GOARCH=amd64 go build -o bin/unpub_darwin_amd64 ./cmd/server
+	GOOS=darwin GOARCH=arm64 go build -o bin/unpub_darwin_arm64 ./cmd/server
 	tar -czvf bin/unpub_linux_amd64.tar.gz -C bin unpub_linux_amd64
+	tar -czvf bin/unpub_linux_arm64.tar.gz -C bin unpub_linux_arm64
 	tar -czvf bin/unpub_darwin_amd64.tar.gz -C bin unpub_darwin_amd64
+	tar -czvf bin/unpub_darwin_arm64.tar.gz -C bin unpub_darwin_arm64
 
 .PHONY: test
 test:

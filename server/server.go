@@ -673,7 +673,7 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/vnd.pub.v2+json")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(b)))
 	w.Write(b)
 }

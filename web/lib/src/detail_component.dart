@@ -1,23 +1,15 @@
 import 'dart:async';
-import 'dart:html';
-import 'package:angular/angular.dart';
-import 'package:angular_router/angular_router.dart';
-import 'package:markdown/markdown.dart';
+import 'package:ngdart/angular.dart';
+import 'package:ngrouter/ngrouter.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:unpub_web/api/models.dart';
 import 'package:unpub_web/app_service.dart';
 import 'routes.dart';
 
-// Allow all url
-// https://stackoverflow.com/questions/18867266/dart-removing-disallowed-attribute-after-editor-upgraded
-class _MyUriPolicy implements UriPolicy {
-  bool allowsUri(String uri) => true;
-}
-
-final _myUriPolify = _MyUriPolicy();
-
-final NodeValidatorBuilder _htmlValidator = NodeValidatorBuilder.common()
-  ..allowElement('a', attributes: ['href'], uriPolicy: _myUriPolify)
-  ..allowElement('img', uriAttributes: ['src'], uriPolicy: _myUriPolify);
+String markdownToHtml(String markdown) => md.markdownToHtml(
+      markdown,
+      extensionSet: md.ExtensionSet.gitHubFlavored,
+    );
 
 @Component(
   selector: 'detail',

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:angular/angular.dart';
-import 'package:angular_router/angular_router.dart';
+import 'package:ngdart/angular.dart';
+import 'package:ngrouter/ngrouter.dart';
 import 'package:unpub_web/api/models.dart';
 import 'package:unpub_web/app_service.dart';
 import 'routes.dart';

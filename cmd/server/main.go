@@ -24,7 +24,7 @@ var (
 	uploaderEmail = flag.String("uploader-email", "test@example.com", "The default uploader email to use")
 	inMemory      = flag.Bool("memory", false, "Runs the server in-memory, using no storage")
 	path          = flag.String("path", "", "Directory to store DB files (defaults to temp dir, only valid if memory=false)")
-	addr          = flag.String("addr", "http://localhost:${PORT}", "The hostname to serve unpub as")
+	addr          = flag.String("addr", "localhost", "The hostname to serve unpub as")
 
 	//go:embed build
 	staticFS embed.FS
@@ -59,7 +59,7 @@ func main() {
 			*port = 4000
 		}
 	}
-	if *addr == "" {
+	if *addr == "localhost" {
 		*addr = fmt.Sprintf("http://localhost:%d", *port)
 	}
 	svc := &server.UnpubServiceImpl{

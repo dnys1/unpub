@@ -2,17 +2,18 @@ name: pkg_b
 description: A starting point for Dart libraries or applications.
 version: 1.0.0
 homepage: https://github.com/dnys1/unpub
+publish_to: http://localhost:5000
 
 environment:
-  sdk: '>=2.12.0 <3.0.0'
+  sdk: '>=2.19.0 <3.0.0'
 
 dependencies:
   pkg_a:
     hosted:
-      url: http://localhost:4000
+      url: http://localhost:5000
       name: pkg_a
     version: ^1.0.0
 
 dev_dependencies:
-  lints: ^1.0.0
+  lints: ^2.0.0
   test: ^1.16.0
